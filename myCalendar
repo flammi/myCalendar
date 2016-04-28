@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+
+import datetime
+import sys
+import sqlite3
+
+weekdays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+def weekday_formatter(day):
+    if day == 7:
+        return "\x1B[31;40m{}\x1B[0m".format(weekdays[day - 1])
+    else:
+        return weekdays[day - 1]
+
+
+def month_days(year, month):
+    iday = datetime.date(year = year,month = month, day = 1)
+    while True:
+        yield (iday.isoweekday(), iday)
+        iday += datetime.timedelta(days = 1)
+        if iday.month != today.month:
+            break;
+
+import tty, sys
+
+def getCh():
+    fd = sys.stdin.fileno()
+    old_settings = tty.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        return sys.stdin.read(1)
+    finally:
+        tty.tcsetattr(fd, tty.TCSADRAIN, old_settings)
+
+
+def getDataFromSQL(year, month):
+    db = sqlite3.connect("events.sqlite")
+    db.execute("CREATE TABLE IF NOT EXISTS events ( \
+                    id INTEGER, \
+                    date TEXT, \
+                    desc TEXT)")
+
+    cur = db.cursor()
+    cur.execute("SELECT * FROM events WHERE date LIKE ?", ["{}-{:02}%".format(year, month)])
+    d = {}
+    for row in cur.fetchall():
+        d[row[1]] = row[2]
+    return d
+
+
+if __name__ == "__main__":
+                  
+    today = datetime.date.today()
+    pos = today.day
+
+    events = getDataFromSQL(today.year, today.month)
+    import pprint; pprint.pprint(events)
+
+    while True:
+        # Erase all
+        sys.stdout.write("\x1b[2J\x1b[;H")
+
+        print("April 2016\n")
+
+        # Print all
+        for wd, day in month_days(year=today.year, month=today.month):
+            starter = weekday_formatter(wd) + " " + day.isoformat()
+            print(starter, events.get(day.isoformat(), ""))
+        sys.stdout.write("\x1b[{}A\x1b[{}C".format(day.day-(pos-1), len(starter) + 1))
+        i = getCh() 
+        print(ord(i))
+        sys.exit(-1)
