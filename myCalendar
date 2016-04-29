@@ -3,70 +3,107 @@
 import datetime
 import sys
 import sqlite3
+import curses
 
 weekdays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
-
-def weekday_formatter(day):
-    if day == 7:
-        return "\x1B[31;40m{}\x1B[0m".format(weekdays[day - 1])
-    else:
-        return weekdays[day - 1]
-
+months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
 
 def month_days(year, month):
     iday = datetime.date(year = year,month = month, day = 1)
     while True:
         yield (iday.isoweekday(), iday)
         iday += datetime.timedelta(days = 1)
-        if iday.month != today.month:
+        if iday.month != month:
             break;
 
-import tty, sys
+class DB:
+    def __init__(self, db_name):
+        self.db = sqlite3.connect(db_name)
+        self.db.execute("CREATE TABLE IF NOT EXISTS events ( \
+                        date TEXT, \
+                        desc TEXT)")
 
-def getCh():
-    fd = sys.stdin.fileno()
-    old_settings = tty.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
-        return sys.stdin.read(1)
-    finally:
-        tty.tcsetattr(fd, tty.TCSADRAIN, old_settings)
+    def get_month(self, year, month):
+        cur = self.db.cursor()
+        cur.execute("SELECT * FROM events WHERE date LIKE ?", ["{}-{:02}%".format(year, month)])
+        d = {}
+        for row in cur.fetchall():
+            d[row[0]] = row[1]
+        return d
 
-
-def getDataFromSQL(year, month):
-    db = sqlite3.connect("events.sqlite")
-    db.execute("CREATE TABLE IF NOT EXISTS events ( \
-                    id INTEGER, \
-                    date TEXT, \
-                    desc TEXT)")
-
-    cur = db.cursor()
-    cur.execute("SELECT * FROM events WHERE date LIKE ?", ["{}-{:02}%".format(year, month)])
-    d = {}
-    for row in cur.fetchall():
-        d[row[1]] = row[2]
-    return d
+    def set_day(self, year, month, day, text):
+        DAF = "{}-{:02}-{:02}"
+        cur = self.db.cursor()  
+        cur.execute("DELETE FROM events WHERE date LIKE ?", [DAF.format(year, month, day)])
+        cur.execute("INSERT INTO events VALUES (?, ?)", (DAF.format(year, month, day), text))
+        self.db.commit()
 
 
-if __name__ == "__main__":
+def main(stdscr):
+    curses.noecho()
+    curses.cbreak()
+    stdscr.keypad(True)
+
+    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
                   
+    curses.curs_set(False)
     today = datetime.date.today()
+    cur_month = today.month
+    cur_year = today.year
     pos = today.day
 
-    events = getDataFromSQL(today.year, today.month)
-    import pprint; pprint.pprint(events)
+    db = DB("events.sqlite")
+    events = db.get_month(cur_year, cur_month)
+    selected = 1
+    paste_cache = None
 
     while True:
-        # Erase all
-        sys.stdout.write("\x1b[2J\x1b[;H")
-
-        print("April 2016\n")
+        stdscr.clear()
+        stdscr.addstr(0, 0, "{} {}".format(months[cur_month - 1], cur_year))
 
         # Print all
-        for wd, day in month_days(year=today.year, month=today.month):
-            starter = weekday_formatter(wd) + " " + day.isoformat()
-            print(starter, events.get(day.isoformat(), ""))
-        sys.stdout.write("\x1b[{}A\x1b[{}C".format(day.day-(pos-1), len(starter) + 1))
-        i = getCh() 
-        print(ord(i))
-        sys.exit(-1)
+        for wd, day in month_days(year=cur_year, month=cur_month):
+            stdscr.move(day.day + 1, 5)
+            if wd == 7:
+                stdscr.addstr(weekdays[wd - 1], curses.color_pair(1))
+            else:
+                stdscr.addstr(weekdays[wd - 1])
+            stdscr.addstr(", {} {}".format(day.isoformat(), events.get(day.isoformat(), "")))
+            if day.day == selected:
+                stdscr.addstr(day.day + 1, 0, "=>")
+
+        key = stdscr.getch()
+
+        if key == curses.KEY_UP:
+            selected = max(1, selected - 1)
+        elif key == curses.KEY_DOWN:
+            selected += 1
+        elif key == curses.KEY_LEFT:
+            cur_month -= 1
+            if cur_month == 0:
+                cur_month = 12
+                cur_year -= 1
+            events = db.get_month(cur_year, cur_month)
+        elif key == ord("y"):
+            paste_cache = events["{}-{:02}-{:02}".format(cur_year, cur_month, selected)]
+        elif key == ord("p"):
+            if paste_cache is not None:
+                events["{}-{:02}-{:02}".format(cur_year, cur_month, selected)] = paste_cache
+                db.set_day(cur_year, cur_month, selected, paste_cache)
+        elif key == curses.KEY_RIGHT:
+            cur_month += 1
+            if cur_month == 13:
+                cur_month = 1
+                cur_year += 1
+            events = db.get_month(cur_year, cur_month)
+        elif key == ord("\n"):
+            curses.curs_set(True)
+
+            curses.echo()
+            text = stdscr.getstr(selected + 1, 20)
+            curses.noecho()
+            events["{}-{:02}-{:02}".format(cur_year, cur_month, selected)] = text.decode("utf-8")
+            db.set_day(cur_year, cur_month, selected, text.decode("utf-8"))
+            curses.curs_set(False)
+
+curses.wrapper(main)
