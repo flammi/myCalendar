@@ -4,9 +4,12 @@ import datetime
 import sys
 from calbase import *
 import curses
+import os.path
 
 weekdays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+
+cal_directory = "~/.calendars/"
 
 def month_days(year, month):
     iday = datetime.date(year = year,month = month, day = 1)
@@ -15,6 +18,24 @@ def month_days(year, month):
         iday += datetime.timedelta(days = 1)
         if iday.month != month:
             break;
+
+def calendar_discovery():
+    path = os.path.expanduser(cal_directory)
+
+    if not os.path.exists(path):
+        return []
+
+    calendars = []
+
+    calendars.append(DB(os.path.join(path, "events.sqlite")))
+    calendars.append(BDB(os.path.join(path, "bdays.txt")))
+
+    files = os.listdir(path)
+    for cal_file in files:
+        if cal_file.endswith(".txt") and cal_file != "bdays.txt":
+            calendars.append(TDB(os.path.join(path, cal_file)))
+
+    return calendars
 
 def main(stdscr):
     curses.noecho()
@@ -29,7 +50,8 @@ def main(stdscr):
     cur_year = today.year
     selected = today.day
 
-    db = EntryJoin(DB("events.sqlite"), BDB("bdays.txt"), TDB("tuFilm.txt"), TDB("vhdl.txt"))
+    calendars = calendar_discovery()
+    db = EntryJoin(*calendars)
     events = db.get_month(cur_year, cur_month)
     paste_cache = None
 
