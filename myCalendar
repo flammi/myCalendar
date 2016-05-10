@@ -49,6 +49,7 @@ def main(stdscr):
     cur_month = today.month
     cur_year = today.year
     selected = today.day
+    scroll_start = 1
 
     calendars = calendar_discovery()
     db = EntryJoin(*calendars)
@@ -59,23 +60,45 @@ def main(stdscr):
         stdscr.clear()
         stdscr.addstr(0, 0, "{} {}".format(months[cur_month - 1], cur_year))
 
+        ymax, xmax = stdscr.getmaxyx()
+
+        scroll_length = 0
+
         # Print all
+        last_day_month = list(month_days(year=cur_year, month=cur_month))[-1][1].day
         for wd, day in month_days(year=cur_year, month=cur_month):
-            stdscr.move(day.day + 1, 5)
+            if day.day < scroll_start:
+                continue
+
+            ypos = day.day + 1 - (scroll_start - 1)
+            
+            if ypos >= ymax:
+                break
+
+            stdscr.move(ypos, 5)
+            scroll_length +=1
+            
             if wd == 7:
                 stdscr.addstr(weekdays[wd - 1], curses.color_pair(1))
             else:
                 stdscr.addstr(weekdays[wd - 1])
             stdscr.addstr(", {} {}".format(day.isoformat(), events.get(day.isoformat(), "")))
             if day.day == selected:
-                stdscr.addstr(day.day + 1, 0, "=>")
+                stdscr.addstr(ypos, 0, "=>")
+       
+        # For debugging 
+        #stdscr.addstr(1, 0, "{} {} {} {} {}".format(xmax,ymax, scroll_start, scroll_length, selected))
 
         key = stdscr.getch()
 
         if key == curses.KEY_UP:
             selected = max(1, selected - 1)
+            scroll_start = min(scroll_start, selected)
         elif key == curses.KEY_DOWN:
-            selected += 1
+            selected = min(last_day_month, selected + 1)
+            scroll_start = max(scroll_start, selected - scroll_length + 1)
+        elif key == curses.KEY_RESIZE:
+            scroll_start = 1
         elif key == curses.KEY_LEFT:
             cur_month -= 1
             if cur_month == 0:
