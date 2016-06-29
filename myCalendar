@@ -11,6 +11,24 @@ months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August"
 
 cal_directory = "~/.calendars/"
 
+def my_edit(screen, posy, posx, prev_text, length):
+    text = prev_text
+    start = posx
+    posx += len(prev_text)
+    screen.move(posy,posx)
+    while True:
+        c = screen.getch()
+        if c == curses.KEY_BACKSPACE:
+            screen.addch(" ")
+            posx = max(start, posx - 1)
+            screen.move(posy,posx)
+            text = text[:-1]
+        elif c == ord("\n"):
+            return text
+        else:
+            posx += 1
+            text = text + chr(c)
+
 def month_days(year, month):
     iday = datetime.date(year = year,month = month, day = 1)
     while True:
@@ -121,9 +139,10 @@ def main(stdscr):
             curses.curs_set(True)
 
             curses.echo()
-            text = stdscr.getstr(selected + 1, 20)
+            #text = stdscr.getstr(selected + 1, 20)
+            text = my_edit(stdscr, selected + 1, 20, events.get("{}-{:02}-{:02}".format(cur_year, cur_month, selected), ""), 40)
             curses.noecho()
-            db.set_day(cur_year, cur_month, selected, text.decode("utf-8"))
+            db.set_day(cur_year, cur_month, selected, text)
             events = db.get_month(cur_year, cur_month)
             curses.curs_set(False)
 
