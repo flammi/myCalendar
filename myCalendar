@@ -16,8 +16,6 @@ def my_edit(screen, posy, posx, prev_text, length):
     start = posx
     posx += len(prev_text)
     while True:
-        screen.move(0,0)
-        screen.addstr("{} {}".format(posy, posx))
         screen.move(posy,posx)
         c = screen.getch()
         if c == curses.KEY_BACKSPACE:
