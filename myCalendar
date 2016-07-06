@@ -15,29 +15,27 @@ def my_edit(screen, posy, posx, prev_text, length):
     text = prev_text
     start = posx
     posx += len(prev_text)
-    screen.move(posy,posx)
     while True:
+        screen.move(0,0)
+        screen.addstr("{} {}".format(posy, posx))
+        screen.move(posy,posx)
         c = screen.getch()
         if c == curses.KEY_BACKSPACE:
-            screen.addch(" ")
-            text = text[posx-start-1:] + text[posx-start:]
-            posx = max(start, posx - 1)
-            screen.move(posy,posx)
-            screen.addstr(text[posx-start:])
+            text = text[:posx-start-1] + text[posx-start:]
+            posx -= 1
         elif c == curses.KEY_LEFT:
-            posx = max(start, posx - 1)
-            screen.move(posy, posx)
+            posx -= 1
         elif c == curses.KEY_RIGHT:
-            posx = min(start + length, posx + 1)
-            screen.move(posy, posx)
+            if len(text) > posx-start:
+                posx += 1
         elif c == ord("\n"):
             return text
         else:
             posx += 1
             text = text[:posx-start] + chr(c) + text[posx-start:]
-            screen.move(posy, posx)
-            screen.addstr(text[posx-start:])
-            screen.move(posy, posx)
+        posx = min(max(start, posx), start+length)
+        screen.move(posy, start)
+        screen.addstr(text + " ")
 
 def month_days(year, month):
     iday = datetime.date(year = year,month = month, day = 1)
