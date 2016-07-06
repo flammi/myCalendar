@@ -20,14 +20,24 @@ def my_edit(screen, posy, posx, prev_text, length):
         c = screen.getch()
         if c == curses.KEY_BACKSPACE:
             screen.addch(" ")
+            text = text[posx-start-1:] + text[posx-start:]
             posx = max(start, posx - 1)
             screen.move(posy,posx)
-            text = text[:-1]
+            screen.addstr(text[posx-start:])
+        elif c == curses.KEY_LEFT:
+            posx = max(start, posx - 1)
+            screen.move(posy, posx)
+        elif c == curses.KEY_RIGHT:
+            posx = min(start + length, posx + 1)
+            screen.move(posy, posx)
         elif c == ord("\n"):
             return text
         else:
             posx += 1
-            text = text + chr(c)
+            text = text[:posx-start] + chr(c) + text[posx-start:]
+            screen.move(posy, posx)
+            screen.addstr(text[posx-start:])
+            screen.move(posy, posx)
 
 def month_days(year, month):
     iday = datetime.date(year = year,month = month, day = 1)
