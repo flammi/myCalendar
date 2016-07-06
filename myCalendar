@@ -61,6 +61,13 @@ def calendar_discovery():
 
     return calendars
 
+def parse_user_date(text, cur_month, cur_year):
+    data = text.split("-")[::-1]
+    d = int(data[0])
+    m = int(data[1]) if len(data) > 1 else cur_month
+    y = int(data[2]) if len(data) > 2 else cur_year
+    return (d,m,y)
+
 def main(stdscr):
     curses.noecho()
     curses.cbreak()
@@ -135,6 +142,23 @@ def main(stdscr):
             if paste_cache is not None:
                 events["{}-{:02}-{:02}".format(cur_year, cur_month, selected)] = paste_cache
                 db.set_day(cur_year, cur_month, selected, paste_cache)
+        elif key == ord("q"):
+            break
+        elif key == ord("g"):
+            #Goto date
+            curses.curs_set(True)
+            stdscr.move(ymax-1,1)
+            stdscr.addstr("Go to date: ")
+            date = my_edit(stdscr, ymax-1, 13, "", 20)
+            selected, cur_month, cur_year = parse_user_date(date, cur_month, cur_year)
+            events = db.get_month(cur_year, cur_month)
+            curses.curs_set(False)
+        elif key == ord("t"):
+            today = datetime.date.today()
+            cur_month = today.month
+            cur_year = today.year
+            selected = today.day
+            events = db.get_month(cur_year, cur_month)
         elif key == curses.KEY_RIGHT:
             cur_month += 1
             if cur_month == 13:
@@ -144,10 +168,8 @@ def main(stdscr):
         elif key == ord("\n"):
             curses.curs_set(True)
 
-            curses.echo()
             #text = stdscr.getstr(selected + 1, 20)
             text = my_edit(stdscr, selected + 1, 20, events.get("{}-{:02}-{:02}".format(cur_year, cur_month, selected), ""), 40)
-            curses.noecho()
             db.set_day(cur_year, cur_month, selected, text)
             events = db.get_month(cur_year, cur_month)
             curses.curs_set(False)
