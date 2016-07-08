@@ -21,6 +21,8 @@ def my_edit(screen, posy, posx, prev_text, length):
         if c == curses.KEY_BACKSPACE:
             text = text[:posx-start-1] + text[posx-start:]
             posx -= 1
+        elif c == 27: # seems to be the ESC key 
+            return prev_text
         elif c == curses.KEY_LEFT:
             posx -= 1
         elif c == curses.KEY_RIGHT:
@@ -34,6 +36,15 @@ def my_edit(screen, posy, posx, prev_text, length):
         posx = min(max(start, posx), start+length)
         screen.move(posy, start)
         screen.addstr(text + " ")
+
+def enter_prompt(screen, prompt):
+    ymax, xmax = screen.getmaxyx()
+    curses.curs_set(1)
+    screen.move(ymax-1,0)
+    screen.addstr(prompt)
+    res = my_edit(screen, ymax-1, len(prompt), "", 20)
+    curses.curs_set(0)
+    return res
 
 def month_days(year, month):
     iday = datetime.date(year = year,month = month, day = 1)
@@ -117,9 +128,6 @@ def main(stdscr):
             if day.day == selected:
                 stdscr.addstr(ypos, 0, "=>")
        
-        # For debugging 
-        #stdscr.addstr(1, 0, "{} {} {} {} {}".format(xmax,ymax, scroll_start, scroll_length, selected))
-
         key = stdscr.getch()
 
         if key == curses.KEY_UP:
@@ -146,13 +154,9 @@ def main(stdscr):
             break
         elif key == ord("g"):
             #Goto date
-            curses.curs_set(True)
-            stdscr.move(ymax-1,1)
-            stdscr.addstr("Go to date: ")
-            date = my_edit(stdscr, ymax-1, 13, "", 20)
+            date = enter_prompt(stdscr, "Go to date: ")
             selected, cur_month, cur_year = parse_user_date(date, cur_month, cur_year)
             events = db.get_month(cur_year, cur_month)
-            curses.curs_set(False)
         elif key == ord("t"):
             today = datetime.date.today()
             cur_month = today.month
@@ -173,5 +177,8 @@ def main(stdscr):
             db.set_day(cur_year, cur_month, selected, text)
             events = db.get_month(cur_year, cur_month)
             curses.curs_set(False)
+
+# Hack to get a fast response if ESC is pressed
+os.environ["ESCDELAY"] = "25"
 
 curses.wrapper(main)
