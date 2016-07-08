@@ -19,8 +19,9 @@ def my_edit(screen, posy, posx, prev_text, length):
         screen.move(posy,posx)
         c = screen.getch()
         if c == curses.KEY_BACKSPACE:
-            text = text[:posx-start-1] + text[posx-start:]
-            posx -= 1
+            if posx != start: # check if there are characters at the beginning to delete
+                text = text[:posx-start-1] + text[posx-start:]
+                posx -= 1
         elif c == 27: # seems to be the ESC key 
             return prev_text
         elif c == curses.KEY_LEFT:
@@ -31,8 +32,8 @@ def my_edit(screen, posy, posx, prev_text, length):
         elif c == ord("\n"):
             return text
         else:
-            posx += 1
             text = text[:posx-start] + chr(c) + text[posx-start:]
+            posx += 1
         posx = min(max(start, posx), start+length)
         screen.move(posy, start)
         screen.addstr(text + " ")
