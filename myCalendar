@@ -22,6 +22,10 @@ def my_edit(screen, posy, posx, prev_text, length):
             if posx != start: # check if there are characters at the beginning to delete
                 text = text[:posx-start-1] + text[posx-start:]
                 posx -= 1
+        elif c == curses.KEY_END:
+            posx = len(text) + start
+        elif c == curses.KEY_HOME:
+            posx = start
         elif c == 27: # seems to be the ESC key 
             return prev_text
         elif c == curses.KEY_LEFT:
